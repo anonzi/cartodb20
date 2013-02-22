@@ -15,9 +15,11 @@ module CartoDB
       include Helpers
 
       def initialize(arguments)
-        @connection           = Rails::Sequel.connection
+        @environment          = arguments.fetch(:environment)
+        @connection           = arguments.fetch(:connection)
+        @psql_command         = arguments.fetch(:psql_command)
         @relocation_id        = arguments.fetch(:relocation_id)
-        @psql_command         = arguments.fetch(:psql)
+        @database_owner       = arguments.fetch(:database_owner)
 
         @tmp_dir              = File.join(File.dirname(__FILE__), '..',
                                 '..', '..', 'tmp', 'relocator')
@@ -45,14 +47,20 @@ module CartoDB
 
         to_stdout("Loading data from filesystem to #{user.database_name}")
         load_database
+        to_stdout("Renaming database user")
+        rename_database_user
+
+        to_stdout("Setting password for database user")
+        set_database_user_password
+
         to_stdout("Finished relocation with ID: #{relocation_id}")
       end #run
 
       private
 
       attr_reader :local_filesystem, :s3_filesystem, :relocation_id,
-                  :psql_command, :dump_path, :user,
-                  :user_attributes_path, :port, :connection 
+                  :dump_path, :user, :user_attributes_path, :psql_command, 
+                  :connection, :environment, :database_owner 
 
       def create_user
         @user = User.new
@@ -64,7 +72,7 @@ module CartoDB
 
         raise 'Invalid user' unless user.valid?
         user.save
-        user.database_name = "cartodb_#{Rails.env}_user_#{user.id}_db"
+        user.database_name = "cartodb_#{environment}_user_#{user.id}_db"
         user.save
       end #create_user
 
@@ -74,16 +82,9 @@ module CartoDB
       end #create_database_user
 
       def create_user_database
-        owner = Rails.configuration.database_configuration
-                  .fetch(Rails.env)
-                  .fetch('username')
-        puts owner
-        begin
-          connection.run(create_user_database_sql(owner))
-        rescue => exception 
-          puts 'Error!'
-          raise exception
-        end
+        connection.run(create_user_database_sql(owner))
+      rescue => exception 
+        puts 'Error!'
       end #create_user_database
 
       def load_database
@@ -95,15 +96,30 @@ module CartoDB
         end
       end #load_database
 
+      def rename_database_user
+        connection.run(rename_database_user_sql)
+      end #rename_database_user
+
+      def set_database_user_password
+        connection.run(set_database_user_password_sql)
+      end #set_database_user_password
+
       def download_from_s3(path)
         url = url_for(path)
         local_filesystem.store(path, s3_filesystem.fetch(url))
       end #download_from_s3
 
       def create_database_user_sql
-        "CREATE USER token#{migration.id.delete('-')} 
-        PASSWORD '#{user.database_password}'"
+        "CREATE USER #{token} PASSWORD '#{user.database_password}'"
       end #create_database_user_sql
+
+      def rename_database_user_sql
+        "ALTER USER #{token} RENAME TO #{database_username}"
+      end #rename_database_user_sql
+
+      def set_database_user_password_sql
+        "ALTER USER #{database_username} PASSWORD #{user.database_password}"
+      end #set_database_user_password_sql
 
       def create_user_database_sql(owner)
         "CREATE DATABASE #{user.database_name}

@@ -3,8 +3,16 @@
 module CartoDB
   module Relocator
     module Helpers
+      def token
+        "token#{relocation_id.delete('-')}" 
+      end #token
+
+      def database_username
+        "#{environment}_cartodb_user_#{user.id}"
+      end #database_username
+
       def user_database_for(user_id)
-        "cartodb_dev_user_#{user_id}_db"
+        "cartodb_#{environment}_user_#{user_id}_db"
       end #user_database
 
       def to_stdout(text)
