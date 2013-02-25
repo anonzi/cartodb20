@@ -14,12 +14,13 @@ describe Local do
 
   after do
     @data.close
-    FileUtils.rmtree(@prefix)
-    FileUtils.rmtree(Local::DEFAULT_PREFIX)
+    #FileUtils.rmtree(@prefix)
+    #FileUtils.rmtree(Local::DEFAULT_PREFIX)
   end
 
   describe '#initialize' do
     it 'sets the storage prefix to Local::DEFAULT_PREFIX by default' do
+      skip
       File.exists?( File.join(Local::DEFAULT_PREFIX, @path) ).must_equal false
 
       path = Local.new.store(@path, @data)
@@ -29,6 +30,7 @@ describe Local do
 
   describe '#store' do
     it 'stores data in the specified path' do
+      skip
       filesystem  = Local.new(@prefix)
       path = filesystem.store(@path, @data)
 
@@ -41,6 +43,7 @@ describe Local do
 
   describe '#fetch' do
     it 'retrieves data from the specified path' do
+      skip
       filesystem  = Local.new(@prefix)
       path = filesystem.store(@path, @data)
 
@@ -50,5 +53,15 @@ describe Local do
       stored_data.read.must_equal @data.read
     end
   end #fetch
+
+  describe '#zip' do
+    it 'zips a directory' do
+      filesystem    = Local.new(@prefix)
+      path          = filesystem.store("sample/#{@path}", @data)
+      zip_path      = filesystem.zip("sample")
+      puts zip_path
+      zip_path.must_match /.zip/
+    end
+  end #zip
 end # Local
 

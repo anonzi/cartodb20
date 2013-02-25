@@ -1,5 +1,6 @@
 # encoding: utf-8 
 require 'fileutils'
+require 'zip/zip'
 
 module DataRepository
   module Filesystem
@@ -29,6 +30,22 @@ module DataRepository
       def fetch(path)
         File.open(destination_for(path), 'r')
       end #fetch
+
+      def zip(path)
+        zip_path = "#{destination_for(path)}.zip"
+
+        Zip::ZipFile.open(zip_path, true) do |zipfile|
+          Dir.glob("#{destination_for(path)}/**/*") do |filepath|
+            next if (filepath == '.' || filepath == '..')
+            zipfile.add(File.absolute_path(filepath, path), filepath)
+          end
+        end
+
+        zip_path
+      end #zip
+
+      def unzip(path)
+      end #unzip
 
       private
 
